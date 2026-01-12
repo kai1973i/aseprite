@@ -6,13 +6,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
-        build_type: [RelWithDebInfo]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        build_type: [Debug, RelWithDebInfo]
         ui: [gui, cli]
         scripting: [lua, noscripts]
         exclude:
-          - build_type: Debug
-            ui: gui
           - build_type: RelWithDebInfo
             ui: cli
           - build_type: RelWithDebInfo
@@ -39,12 +37,12 @@ jobs:
         else
           this_dir="${{ github.workspace }}"
         fi
-        skia_url=$(source $this_dir/laf/misc/skia-url.sh | xargs)
+        skia_url=$(bash $this_dir/laf/misc/skia-url.sh)
         skia_file=$(basename $skia_url)
         curl --ssl-revoke-best-effort -L -o "$skia_file" "$skia_url"
         unzip "$skia_file" -d skia
     - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2.17
+      uses: hendrikmuhs/ccache-action@v1.2
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       with:
         key: ${{ matrix.os }}-${{ matrix.ui }}-${{ matrix.scripting }}-${{ matrix.build_type }}
@@ -108,3 +106,13 @@ jobs:
         export ASEPRITE=$PWD/build/bin/aseprite
         cd tests
         $XVFB bash run-tests.sh
+    - name: Upload Build Artifacts
+      if: matrix.ui == 'gui' && matrix.build_type == 'RelWithDebInfo'
+      uses: actions/upload-artifact@v4
+      with:
+        name: aseprite-${{ matrix.os }}-${{ matrix.scripting }}
+        path: |
+          build/bin/aseprite
+          build/bin/aseprite.exe
+          build/bin/*.app
+        retention-days: 30
